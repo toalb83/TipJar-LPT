@@ -1,1 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TipJar.live – Send LPT</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f7f7f7;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.8rem 1.2rem;
+      border: none;
+      border-radius: 8px;
+      background: #5a31f4;
+      color: white;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    .tip-options {
+      display: flex;
+      justify-content: space-around;
+      margin: 1rem 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>💜 Tip <span id="creatorName">Aria</span> in LPT</h2>
+    <p>Support your favorite creator on Arbitrum</p>
 
+    <div class="tip-options">
+      <button onclick="setTip(1)">1 LPT</button>
+      <button onclick="setTip(3)">3 LPT</button>
+      <button onclick="setTip(5)">5 LPT</button>
+    </div>
+
+    <input id="amount" type="number" placeholder="Custom amount (LPT)" />
+    <textarea id="note" rows="3" placeholder="Say something nice (optional)"></textarea>
+    <button onclick="connectWallet()">🔌 Connect Wallet</button>
+    <button onclick="sendTip()">💸 Send Tip</button>
+
+    <p id="status"></p>
+  </div>
+
+  <script>
+    const creatorAddress = "0xYourCreatorWalletHere"; // <-- Replace with real creator address
+    const LPT_TOKEN_ADDRESS = "0x289ba1701C2F088cf0faf8B3705246331cb8A839"; // LPT on Arbitrum
+    const ARBITRUM_CHAIN_ID = "0xa4b1"; // 42161
+
+    let provider;
+    let signer;
+
+    async function connectWallet() {
+      try {
+        if (typeof window.ethereum === "undefined") {
+          alert("MetaMask not detected!");
+          return;
+        }
+
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+
+        const { chainId } = await provider.getNetwork();
+        if (chainId !== 42161) {
+          await switchToArbitrum();
+        }
+
+        document.getElementById("status").innerText = "✅ Wallet connected";
+      } catch (err) {
+        console.error(err);
+        alert("Failed to connect wallet.");
+      }
+    }
+
+    async function switchToArbitrum() {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: ARBITRUM_CHAIN_ID }],
+      });
+    }
+
+    async function sendTip() {
+      const amount = parseFloat(document.getElementById("amount").value);
+      if (!amount || amount <= 0) return alert("Enter valid amount");
+
+      const abi = ["function transfer(address to, uint amount) returns (bool)"];
+      const token = new ethers.Contract(LPT_TOKEN_ADDRESS, abi, signer);
+
+      try {
+        const decimals = 18;
+        const tx = await token.transfer(
+          creatorAddress,
+          ethers.utils.parseUnits(amount.toString(), decimals)
+        );
+
+        document.getElementById("status").innerText = "⏳ Sending...";
+        await tx.wait();
+        document.getElementById("status").innerText = "🎉 Tip sent successfully!";
+      } catch (err) {
+        console.error(err);
+        alert("Transaction failed");
+      }
+    }
+
+    function setTip(value) {
+      document.getElementById("amount").value = value;
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+</body>
+</html>
